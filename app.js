@@ -255,7 +255,17 @@ var fieldsArray = [
     multiple: false,
     property: 'twitter:app:url:googleplay',
     fieldName: 'twitterAppUrlGooglePlay'
-  }
+},
+{
+    multiple: false,
+    property: 'tb:entity:id',
+    fieldName: 'tbEntityId'
+},
+{
+    multiple: false,
+    property: 'tb:entity:type',
+    fieldName: 'tbEntityType'
+}
 ];
 
 var mediaMapperTwitterImage = function (item) {
