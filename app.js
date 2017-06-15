@@ -321,21 +321,22 @@ exports.info = function (options, callback) {
   var that = this;
   return new Promise(function (resolve, reject) {
     var hasCallback = typeof callback === 'function';
-    var done = function (error, info, source) {
+    var done = function (error, info, response) {
       if (error) {
         if (hasCallback) {
-          callback(error, info);
+          callback(error, info, response);
         }
-        return reject(error, info);
+        return reject(error, response);
       }
       if (hasCallback) {
-        callback(error, info, source);
+        callback(error, info, response);
       }
-      return resolve(info, source);
+      return resolve(info, response);
     };
     that.getInfo(options, done);
   })
-  .catch(function () {
+  .catch(function (error) {
+    if (error) console.log('Open Graph Error: ', error);
     // there was a error passed back
   });
 };
@@ -362,7 +363,7 @@ exports.getInfo = function (options, callback) {
         options.gzip = false;
         options.protocol = url.parse(options.url).protocol;
       }
-      that.getOG(options, function (err, results, source) {
+      that.getOG(options, function (err, results, response) {
         if (results) {
           returnResult = {
             data: results,
@@ -373,29 +374,33 @@ exports.getInfo = function (options, callback) {
             error = true;
             returnResult = {
               err: 'Page Not Found',
-              success: false
+              success: false,
+              errorDetails: err
             };
           } else if (err && err.code === 'ETIMEDOUT') {
             error = true;
             returnResult = {
               err: 'Time Out',
-              success: false
+              success: false,
+              errorDetails: err
             };
           } else if (err && err === 'Must scrape an HTML page') {
             error = true;
             returnResult = {
               err: 'Must scrape an HTML page',
-              success: false
+              success: false,
+              errorDetails: err
             };
           } else {
             error = true;
             returnResult = {
               err: 'Page Not Found',
-              success: false
+              success: false,
+              errorDetails: err
             };
           }
         }
-        callback(error, returnResult, source);
+        callback(error, returnResult, response);
       });
     } else {
       callback(true, {
@@ -460,11 +465,11 @@ exports.getOG = function (options, callback) {
   var ogImageFallback = options.ogImageFallback === undefined ? true : options.ogImageFallback;
   request(options, function (err, response, body) {
     if (err) {
-      callback(err, null);
+      callback(err, null, response);
     } else if (response && response.statusCode && (response.statusCode.toString().substring(0, 1) === '4' || response.statusCode.toString().substring(0, 1) === '5')) {
-      callback(new Error('Error from server'), null);
+      callback(new Error('Error from server'), null, response);
     } else if (!(response && response.headers && response.headers['content-type'] && response.headers['content-type'].indexOf('text/html') !== -1)) {
-      callback('Must scrape an HTML page', null);
+      callback('Must scrape an HTML page', null, response);
     } else {
       if (options.encoding === null) {
         var char = charset(response.headers, body, peekSize) || jschardet.detect(body).encoding;
@@ -501,6 +506,12 @@ exports.getOG = function (options, callback) {
           }
         });
       });
+
+      // set the ogImage or fallback to ogImageURL or ogImageSecureURL
+      ogObject.ogImage = ogObject.ogImage ? ogObject.ogImage : (ogObject.ogImageURL ? ogObject.ogImageURL : (ogObject.ogImageSecureURL ? ogObject.ogImageSecureURL : []));
+      if (!ogObject.ogImage || !ogObject.ogImage.length) {
+        delete ogObject['ogImage'];
+      }
 
       /* Combine image/width/height/type
         and sort for priority */
@@ -626,7 +637,7 @@ exports.getOG = function (options, callback) {
         }
       }
       // console.log('ogObject',ogObject);
-      callback(null, ogObject, body);
+      callback(null, ogObject, response);
     }
   });
 };
